@@ -11,6 +11,7 @@
 
 #include <linux/dma-fence.h>
 #include <linux/sync_file.h>
+#include <linux/syscalls.h>
 
 #include "decon.h"
 
@@ -109,7 +110,8 @@ void decon_create_release_fences(struct decon_device *decon,
 err:
 	while (i-- > 0) {
 		if (win_data->config[i].state == DECON_WIN_STATE_BUFFER) {
-			put_unused_fd(win_data->config[i].rel_fence);
+			/* The fd was installed already; close the open file. */
+			ksys_close(win_data->config[i].rel_fence);
 			win_data->config[i].rel_fence = -1;
 		}
 	}
@@ -168,6 +170,8 @@ int decon_create_fence(struct decon_device *decon, struct sync_file **sync_file)
 	if (fd < 0) {
 		decon_err("%s: failed to get unused fd\n", __func__);
 		fput((*sync_file)->file);
+		*sync_file = NULL;
+		return fd;
 	}
 
 	dpu_save_fence_info(fd, fence, &retire);
@@ -188,12 +192,13 @@ int decon_wait_fence(struct decon_device *decon, struct dma_fence *fence, int fd
 	ktime_t time = ktime_get();
 
 	err = dma_fence_wait_timeout(fence, false, msecs_to_jiffies(600));
-	if (err < 0) {
-		decon_err("%s: waiting on in-fence timeout\n", __func__);
-		ret = err;
+	if (err <= 0) {
+		decon_err("%s: waiting on in-fence failed (%d)\n", __func__, err);
+		ret = err ? err : -ETIMEDOUT;
 
 #if IS_ENABLED(CONFIG_SEC_ABC)
-		sec_abc_send_event("MODULE=decon@INFO=fence_timeout");
+		if (err == 0)
+			sec_abc_send_event("MODULE=decon@INFO=fence_timeout");
 #endif
 
 	}
@@ -216,7 +221,7 @@ int decon_wait_fence(struct decon_device *decon, struct dma_fence *fence, int fd
 	}
 
 	dpu_save_fence_info(fd, fence, &in_fence);
-	if ((err < 0) || (fence_err < 0)) {
+	if ((err <= 0) || (fence_err < 0)) {
 		decon_err("\t%s: ctx(%llu), seqno(%d), fd(%d), flags(0x%lx), err(%d:%d), remaining_frame(%d), elapsed(%lldusec)\n",
 			in_fence.name, in_fence.context, in_fence.seqno,
 			in_fence.fd, in_fence.flags, err, fence_err,
@@ -237,14 +242,14 @@ void decon_signal_fence(struct decon_device *decon, struct dma_fence *fence)
 	struct dpu_fence_info retire;
 	int ret = 0;
 
-	ret = dma_fence_signal(fence);
-	if (ret < 0)
-		decon_warn("failed to signal fence. err(%d)\n", ret);
-
 	if (!fence) {
 		decon_err("%s: fence is NULL\n", __func__);
 		return;
 	}
+
+	ret = dma_fence_signal(fence);
+	if (ret < 0)
+		decon_warn("failed to signal fence. err(%d)\n", ret);
 
 	dpu_save_fence_info(0, fence, &retire);
 	DPU_F_EVT_LOG(DPU_F_EVT_SIGNAL_RETIRE_FENCE, &decon->sd, &retire);

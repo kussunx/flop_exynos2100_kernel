@@ -1533,7 +1533,7 @@ static int __mfc_handle_seq_dec(struct mfc_core *core, struct mfc_ctx *ctx)
 		if (dev->pdata->support_sbwc) {
 			ctx->is_sbwc = mfc_core_is_sbwc_avail();
 			if (ctx->is_sbwc && ((ctx->img_width > dev->pdata->sbwc_dec_max_width) ||
-				(ctx->img_height > dev->pdata->sbwc_dec_max_width) ||
+				(ctx->img_height > dev->pdata->sbwc_dec_max_height) ||
 				(ctx->img_width * ctx->img_height) >
 				(dev->pdata->sbwc_dec_max_width * dev->pdata->sbwc_dec_max_height))) {
 				ctx->is_sbwc = 0;

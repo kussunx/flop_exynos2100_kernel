@@ -1,7 +1,14 @@
 name: Video flicker experimental kernel (BakaSU + SUSFS)
 
 on:
+  push:
+    branches:
+      - fix/video-flicker-fences-sbwc
   workflow_dispatch:
+
+concurrency:
+  group: video-test-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -14,7 +21,10 @@ jobs:
       - name: Checkout kernel
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: Init required mkbootimg submodule
+        run: git submodule update --init --depth=1 build/mkbootimg
 
       - name: Install prerequisites
         run: |
@@ -28,6 +38,7 @@ jobs:
           DO_TAR: "0"
           USE_CCACHE: "0"
           KERNEL_URL: "https://github.com/kussunx/flop_exynos2100_kernel"
+          FK_VER: "v1.1.2-kussun-test1"
         run: |
           set -euo pipefail
           # Internal legacy "s" flag selects BakaSU from drivers/sukisu.
@@ -44,12 +55,22 @@ jobs:
           zipfile="$(find build -maxdepth 1 -name 'Floppy_*BakaSU-SUSFS*.zip' -print -quit)"
           test -n "$zipfile"
           unzip -t "$zipfile"
+          entries="$(unzip -Z1 "$zipfile")"
+          for required in Image vendor_boot.img anykernel.sh dtbo_o1s.img dtbo_r9s.img dtbo_p3s.img dtbo_t2s.img; do
+            if ! grep -Fxq "$required" <<< "$entries"; then
+              echo "Missing required flashable ZIP entry: $required" >&2
+              exit 1
+            fi
+          done
+          sha256sum "$zipfile" | tee build/SHA256SUMS.txt
 
       - name: Upload installable ZIP
         uses: actions/upload-artifact@v4
         with:
           name: Floppy-VideoFlicker-TEST-BakaSU-SUSFS
-          path: build/Floppy_*BakaSU-SUSFS*.zip
+          path: |
+            build/Floppy_*BakaSU-SUSFS*.zip
+            build/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 14

@@ -11,10 +11,10 @@ config KSU_NEXT
 	  Enable KernelSU Next.
 
 config KSU_SUKI
-	bool "SukiSU Ultra"
+	bool "BakaSU + SUSFS (vendored)"
 	select OVERLAY_FS
 	help
-	  Enable SukiSU Ultra with SUSFS support.
+	  Enable the vendored BakaSU core with SUSFS support.\n\t  The legacy KSU_SUKI symbol is retained for source compatibility.
 
 config KSU_XXKSU
 	bool "XXKSU"
