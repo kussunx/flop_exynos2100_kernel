@@ -188,9 +188,9 @@ int decon_wait_fence(struct decon_device *decon, struct dma_fence *fence, int fd
 	ktime_t time = ktime_get();
 
 	err = dma_fence_wait_timeout(fence, false, msecs_to_jiffies(600));
-	if (err < 0) {
-		decon_err("%s: waiting on in-fence timeout\n", __func__);
-		ret = err;
+	if (err <= 0) {
+		decon_err("%s: waiting on in-fence failed (%d)\n", __func__, err);
+		ret = err ? err : -ETIMEDOUT;
 
 #if IS_ENABLED(CONFIG_SEC_ABC)
 		sec_abc_send_event("MODULE=decon@INFO=fence_timeout");
@@ -216,7 +216,7 @@ int decon_wait_fence(struct decon_device *decon, struct dma_fence *fence, int fd
 	}
 
 	dpu_save_fence_info(fd, fence, &in_fence);
-	if ((err < 0) || (fence_err < 0)) {
+	if ((err <= 0) || (fence_err < 0)) {
 		decon_err("\t%s: ctx(%llu), seqno(%d), fd(%d), flags(0x%lx), err(%d:%d), remaining_frame(%d), elapsed(%lldusec)\n",
 			in_fence.name, in_fence.context, in_fence.seqno,
 			in_fence.fd, in_fence.flags, err, fence_err,
