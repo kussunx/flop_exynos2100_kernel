@@ -32,3 +32,12 @@ The branch replaces `.github/workflows/build.yml` with a single **BakaSU + SUSFS
 
 ## Test
 Compare Instagram Reels, TikTok, and YouTube at 60Hz and 120Hz; try Android Developer options > Disable HW overlays. Note whether a screen recording captures the flicker. Check kernel logs for DPP, DECON, fences, MFC, IOMMU, and shadow update failures.
+
+## Pre-release hardening (2026-10-30)
+- Fixed NULL-pointer check ordering in `decon_signal_fence()`.
+- Repaired `decon_create_fence()` failure unwinding: no use of freed fence metadata after `fput()`.
+- Repaired partial release-fence failure unwinding by closing installed descriptors rather than calling `put_unused_fd()` on already-installed descriptors.
+- Only report Samsung ABC `fence_timeout` on an actual zero-return timeout.
+- Explicitly disabled KPM when no binary KPM patch is applied in the build script.
+- Rechecked ZIP contents for kernel Image, vendor_boot, AnyKernel3 script, and all four device DTBOs; store ZIP SHA256 alongside the build.
+- Kernel package version is independently identified as `v1.1.2-kussun-test1`; this is an **experimental** build, not a stable release.
