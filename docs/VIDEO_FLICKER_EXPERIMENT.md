@@ -10,7 +10,17 @@ Symptoms reported: Instagram Reels and TikTok alternate the first decoded frame 
 3. Experimental isolation: default `default_sbwc_mode=2` to disable **both** SBWC and SBWCL for MFC hardware decode. This is a diagnostic workaround, not a general performance improvement.
 
 ## Build
-The branch replaces `.github/workflows/build.yml` with a single Vanilla build that emits an AnyKernel3 flashable ZIP (a ZIP inside the GitHub Actions artifact archive). A release is **not** published.
+The branch replaces `.github/workflows/build.yml` with a single **BakaSU + SUSFS** build that emits an AnyKernel3 flashable ZIP (a ZIP inside the GitHub Actions artifact archive). A release is **not** published.
+
+## BakaSU
+- Root implementation: vendored **BakaSU**, based on [Baka-SU/BakaSU](https://github.com/Baka-SU/BakaSU), with Kbuild identity `REPO_NAME := BakaSU`, pinned version `v4.2.0-rc3` (upstream commit `239e1e8871b8fcd51a6e5b3002e0ba522fdd99fb`).
+- Active symbols: `CONFIG_KSU_SUKI=y` (historical internal name), `CONFIG_KSU=y`, `CONFIG_KSU_MANUAL_HOOK=y`, `CONFIG_KSU_SUSFS=y`.
+- Integrated kernel SUSFS: `fs/susfs.c`, `include/linux/susfs.h` (v2.3.0).
+- `CONFIG_KSU_NEXT` and `CONFIG_KSU_XXKSU` are not selected. Multi-manager compatibility is disabled.
+- `s` is the current build-script selector for the vendored BakaSU implementation. `bash do_build.sh sq` produces the BakaSU-SUSFS ZIP. Do not confuse this build selector with a second root implementation.
+- **Important:** BakaSU is itself a derivative of KernelSU and retains `KSU` symbol names; this does **not** mean a separate KernelSU Next instance is installed.
+- CI checks the effective `out/.config` for correct variant and SUSFS settings before uploading.
+
 
 ## Important
 - Only install if device is Exynos 2100 and its codename is supported by the AnyKernel3 package: o1s, r9s, p3s, t2s. Confirm exact ROM, vendor compatibility, bootloader unlock, and rollback recovery path.

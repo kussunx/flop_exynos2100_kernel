@@ -1,4 +1,4 @@
-name: Video flicker experimental kernel (Vanilla)
+name: Video flicker experimental kernel (BakaSU + SUSFS)
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  vanilla:
+  bakasu_susfs:
     runs-on: ubuntu-24.04
     timeout-minutes: 350
     steps:
@@ -26,16 +26,39 @@ jobs:
             aria2 brotli zip zstd tar lz4 cpio xz-utils flex bc kmod \
             ccache binutils-aarch64-linux-gnu gcc-aarch64-linux-gnu
 
-      - name: Build and package Vanilla AnyKernel3 ZIP
+      - name: Build and package BakaSU + SUSFS AnyKernel3 ZIP
         env:
           DO_TAR: "0"
           USE_CCACHE: "0"
           KERNEL_URL: "https://github.com/kussunx/flop_exynos2100_kernel"
         run: |
           set -euo pipefail
-          bash ./do_build.sh q
-          ls -lh build/Floppy_*.zip
-          unzip -t build/Floppy_*.zip
+          # "s" selects the vendored BakaSU core (historically CONFIG_KSU_SUKI).
+          # No KernelSU Next/XXKSU variant is built.
+          bash ./do_build.sh sq
+          grep -qx 'CONFIG_KSU_SUKI=y' out/.config
+          grep -qx 'CONFIG_KSU=y' out/.config
+          grep -qx 'CONFIG_KSU_SUSFS=y' out/.config
+          grep -qx 'CONFIG_KSU_MANUAL_HOOK=y' out/.config
+          grep -qx '# CONFIG_KSU_MULTI_MANAGER_SUPPORT is not set' out/.config
+          if grep -Eq '^CONFIG_KSU_(NEXT|XXKSU)=y
+
+      - name: Upload installable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: Floppy-VideoFlicker-TEST-BakaSU-SUSFS
+          path: build/Floppy_*BakaSU-SUSFS*.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+ out/.config; then
+            echo "Unexpected alternate root variant enabled" >&2
+            exit 1
+          fi
+          shopt -s nullglob
+          zips=(build/Floppy_*BakaSU-SUSFS*.zip)
+          test "${#zips[@]}" -eq 1
+          unzip -t "${zips[0]}"
 
       - name: Upload installable ZIP
         uses: actions/upload-artifact@v4
