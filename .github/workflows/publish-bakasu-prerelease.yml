@@ -1,0 +1,55 @@
+name: Publish verified BakaSU SUSFS prerelease
+
+on:
+  workflow_run:
+    workflows:
+      - "Video flicker experimental kernel (BakaSU + SUSFS)"
+    types:
+      - completed
+    branches:
+      - fix/video-flicker-fences-sbwc
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  prerelease:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_sha == 'ff5f55ec79e579e563032f5055f51e7924042ad0' }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download verified BakaSU build
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: Floppy-VideoFlicker-TEST-BakaSU-SUSFS
+          path: verified-artifact
+
+      - name: Verify flashable ZIP and SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd verified-artifact
+          mapfile -t zips < <(find . -maxdepth 1 -type f -name '*.zip' -printf '%f\n')
+          test "${#zips[@]}" -eq 1
+          test -f SHA256SUMS.txt
+          sed 's@  build/@  @' SHA256SUMS.txt | sha256sum --check -
+          sha256sum "${zips[0]}" > verified-SHA256SUMS.txt
+          mv verified-SHA256SUMS.txt SHA256SUMS.txt
+          unzip -t "${zips[0]}"
+          entries="$(unzip -Z1 "${zips[0]}")"
+          for required in Image vendor_boot.img anykernel.sh dtbo_o1s.img dtbo_r9s.img dtbo_p3s.img dtbo_t2s.img; do
+            grep -Fxq "$required" <<< "$entries" || { echo "Missing required entry: $required"; exit 1; }
+          done
+
+      - name: Attach ZIP and publish existing draft prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view v1.1.2-kussun-test1 --json isDraft,isPrerelease,tagName --jq '{isDraft,isPrerelease,tagName}'
+          gh release upload v1.1.2-kussun-test1 verified-artifact/*.zip verified-artifact/SHA256SUMS.txt --clobber
+          gh release edit v1.1.2-kussun-test1 --draft=false --prerelease
