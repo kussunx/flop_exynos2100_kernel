@@ -41,3 +41,12 @@ Compare Instagram Reels, TikTok, and YouTube at 60Hz and 120Hz; try Android Deve
 - Explicitly disabled KPM when no binary KPM patch is applied in the build script.
 - Rechecked ZIP contents for kernel Image, vendor_boot, AnyKernel3 script, and all four device DTBOs; store ZIP SHA256 alongside the build.
 - Kernel package version is independently identified as `v1.1.2-kussun-test1`; this is an **experimental** build, not a stable release.
+
+## Test 2: isolate SBWC mode (2026-10-31)
+- User confirmed test1 `default_sbwc_mode=2` eliminates alternating-frame flicker in social videos, but playback develops a repeating ~2-second stall with audio interruptions.
+- Only functional behavior change relative to test1: `default_sbwc_mode=1` (`FK_SBWC_MODE_NO_SBWC`): disable full SBWC, allow SBWCL.
+- Preserve all test1 DECON/MFC fixes and BakaSU + SUSFS. No CPU/GPU tuning.
+- This is a hypothesis to test **not** a proven fix. It may still stutter or reintroduce flickering.
+- Compare the exact same local video or Instagram/TikTok clip under identical network conditions. Note whether audio or video stalls first.
+- Obtain `adb logcat -b all -d` and `dmesg` after reproduction. Relevant tags: `MFC`, `c2`, `Codec2`, `ACodec`, `decon`, `fence_timeout`, `AudioTrack`, `AudioFlinger`.
+- Do **not** promote a release until test2 works on real o1s hardware.
