@@ -1,9 +1,9 @@
-name: Video flicker experimental kernel (BakaSU + SUSFS)
+name: Exynos2100 video stutter test2 (BakaSU + SUSFS)
 
 on:
   push:
     branches:
-      - fix/video-flicker-fences-sbwc
+      - fix/video-stutter-sbwcl-test2
   workflow_dispatch:
 
 concurrency:
@@ -38,10 +38,12 @@ jobs:
           DO_TAR: "0"
           USE_CCACHE: "0"
           KERNEL_URL: "https://github.com/kussunx/flop_exynos2100_kernel"
-          FK_VER: "v1.1.2-kussun-test1"
+          FK_VER: "v1.1.2-kussun-test2"
         run: |
           set -euo pipefail
           # Internal legacy "s" flag selects BakaSU from drivers/sukisu.
+          grep -Fqx 'static int default_sbwc_mode = FK_SBWC_MODE_NO_SBWC;' init/main.c
+          grep -Fqx 'static char default_sbwc_mode_default_arg[] = "default_sbwc_mode=1";' init/main.c
           bash ./do_build.sh sq
           grep -qx 'CONFIG_KSU_SUKI=y' out/.config
           grep -qx 'CONFIG_KSU=y' out/.config
@@ -67,7 +69,7 @@ jobs:
       - name: Upload installable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Floppy-VideoFlicker-TEST-BakaSU-SUSFS
+          name: Floppy-VideoStutter-TEST2-BakaSU-SUSFS
           path: |
             build/Floppy_*BakaSU-SUSFS*.zip
             build/SHA256SUMS.txt
